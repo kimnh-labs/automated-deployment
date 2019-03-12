@@ -1,0 +1,50 @@
+image: docker:stable
+
+variables:
+  CONTAINER_IMAGE: registry.gitlab.com/kimnh-labs/seminar-docker-auto-deployment
+  REGISTRY_SERVER: registry.gitlab.com
+
+services:
+  - docker:dind
+
+stages:
+  - node-build
+  - docker-build
+  - deploy
+
+
+
+# Node build:
+node-build:
+  stage: node-build
+  environment:
+    name: bundle resource files
+  script:
+    - echo 'docker build -t $CONTAINER_IMAGE:build --target=build .'
+    # - docker build -t $CONTAINER_IMAGE:build --target=build .
+
+
+
+# Build docker image:
+docker-build:
+  stage: docker-build
+  environment:
+    name: build docker image
+  script:
+    - docker build -t $CONTAINER_IMAGE:build --target=build .
+    - docker build -t $CONTAINER_IMAGE:${CI_COMMIT_SHA:0:7} --cache-from=$CONTAINER_IMAGE:build .
+    - docker login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD $REGISTRY_SERVER
+    - docker push $CONTAINER_IMAGE:${CI_COMMIT_SHA:0:7}
+
+
+
+deployment:
+  stage: deploy
+  environment:
+    name: deploying
+  before_script:
+    - echo 'Setup SSH'
+  script:
+    - echo 'SSH into VPS then pull latest docker image'
+    - echo 'docker service update'
+    - echo 'Done'
